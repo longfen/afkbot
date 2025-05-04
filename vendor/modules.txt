@@ -1,0 +1,58 @@
+# github.com/go-gl/mathgl v1.2.0
+## explicit; go 1.11
+github.com/go-gl/mathgl/mgl32
+# github.com/go-jose/go-jose/v4 v4.0.4
+## explicit; go 1.21
+github.com/go-jose/go-jose/v4
+github.com/go-jose/go-jose/v4/cipher
+github.com/go-jose/go-jose/v4/json
+github.com/go-jose/go-jose/v4/jwt
+# github.com/golang/snappy v1.0.0
+## explicit
+github.com/golang/snappy
+# github.com/google/uuid v1.6.0
+## explicit
+github.com/google/uuid
+# github.com/klauspost/compress v1.18.0
+## explicit; go 1.22
+github.com/klauspost/compress/flate
+github.com/klauspost/compress/internal/le
+# github.com/muhammadmuzzammil1998/jsonc v1.0.0
+## explicit
+github.com/muhammadmuzzammil1998/jsonc
+# github.com/pelletier/go-toml v1.9.5
+## explicit
+# github.com/sandertv/go-raknet v1.14.3-0.20250305181847-6af3e95113d6
+## explicit; go 1.22
+github.com/sandertv/go-raknet
+github.com/sandertv/go-raknet/internal
+github.com/sandertv/go-raknet/internal/message
+# github.com/sandertv/gophertunnel v1.45.1
+## explicit; go 1.22
+github.com/sandertv/gophertunnel/minecraft
+github.com/sandertv/gophertunnel/minecraft/auth
+github.com/sandertv/gophertunnel/minecraft/internal
+github.com/sandertv/gophertunnel/minecraft/nbt
+github.com/sandertv/gophertunnel/minecraft/protocol
+github.com/sandertv/gophertunnel/minecraft/protocol/login
+github.com/sandertv/gophertunnel/minecraft/protocol/packet
+github.com/sandertv/gophertunnel/minecraft/resource
+github.com/sandertv/gophertunnel/minecraft/text
+# golang.org/x/crypto v0.33.0
+## explicit; go 1.20
+golang.org/x/crypto/pbkdf2
+# golang.org/x/net v0.35.0
+## explicit; go 1.18
+golang.org/x/net/html
+golang.org/x/net/html/atom
+# golang.org/x/oauth2 v0.23.0
+## explicit; go 1.18
+golang.org/x/oauth2
+golang.org/x/oauth2/internal
+golang.org/x/oauth2/microsoft
+# golang.org/x/text v0.22.0
+## explicit; go 1.18
+golang.org/x/text/internal/language
+golang.org/x/text/internal/language/compact
+golang.org/x/text/internal/tag
+golang.org/x/text/language
