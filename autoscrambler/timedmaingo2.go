@@ -81,7 +81,94 @@ var (
 	balanceCheckPending bool
 	lastPrizeWon        string
 	commandChan         = make(chan string)
+
+	playerListMutex sync.Mutex
+	playerList      = make(map[string]struct{})
 )
+
+// Add player to playerList (thread-safe)
+func addPlayer(name string) {
+	playerListMutex.Lock()
+	defer playerListMutex.Unlock()
+	if name != "" && name != "You" && name != "you" {
+		playerList[name] = struct{}{}
+	}
+}
+
+// Get a snapshot of all players (thread-safe)
+func getAllPlayers() []string {
+	playerListMutex.Lock()
+	defer playerListMutex.Unlock()
+	names := make([]string, 0, len(playerList))
+	for n := range playerList {
+		names = append(names, n)
+	}
+	return names
+}
+
+// Try to extract player names from chat lines (very basic, can be improved)
+func extractPlayerNamesFromChat(msg string) []string {
+	var names []string
+	// Pattern: [ + ] Name (Name) or similar
+	if idx1 := strings.Index(msg, "] "); idx1 != -1 {
+		rest := msg[idx1+2:]
+		if idx2 := strings.Index(rest, " ("); idx2 != -1 {
+			name := strings.TrimSpace(rest[:idx2])
+			if isLikelyPlayerName(name) {
+				names = append(names, name)
+			}
+		}
+	}
+	// Pattern: (+) Name has logged on!
+	if strings.HasPrefix(msg, "(+)") && strings.Contains(msg, "has logged on!") {
+		parts := strings.Split(msg, " ")
+		if len(parts) > 2 {
+			name := parts[1]
+			if isLikelyPlayerName(name) {
+				names = append(names, name)
+			}
+		}
+	}
+	// Pattern: PlayerName: message
+	if idx := strings.Index(msg, ":"); idx > 0 {
+		name := strings.TrimSpace(msg[:idx])
+		if close := strings.LastIndex(name, "]"); close != -1 {
+			name = strings.TrimSpace(name[close+1:])
+		}
+		if isLikelyPlayerName(name) {
+			names = append(names, name)
+		}
+	}
+	// Pattern: PlayerName joined the game
+	if strings.HasSuffix(msg, "joined the game") {
+		parts := strings.Split(msg, " ")
+		if len(parts) > 0 {
+			name := parts[0]
+			if isLikelyPlayerName(name) {
+				names = append(names, name)
+			}
+		}
+	}
+	return names
+}
+
+// Helper: checks if a string is a likely player name
+func isLikelyPlayerName(name string) bool {
+	if len(name) < 3 || len(name) > 20 {
+		return false
+	}
+	for _, c := range name {
+		if !(c >= 'a' && c <= 'z') && !(c >= 'A' && c <= 'Z') && !(c >= '0' && c <= '9') {
+			return false
+		}
+	}
+	// Add more exclusions if needed (e.g., keywords)
+	switch strings.ToLower(name) {
+	case "has", "logged", "on", "the", "and", "for", "you", "msg", "sent", "test", "chat", "vote", "store", "discord", "website", "version", "exp", "from", "charity", "mail", "quest", "reset", "check", "your", "use", "latest", "update", "season", "v", "op", "factions", "divine", "lootbox", "point", "here", "pilotrex6242766":
+		return false
+	}
+	return true
+}
 
 func init() {
 	loadWordList()
@@ -442,6 +529,20 @@ func main() {
 		connGlobal = conn
 		connMutex.Unlock()
 
+		// Send /list to get all online players
+		go func() {
+			time.Sleep(2 * time.Second) // Wait for connection to be ready
+			connMutex.Lock()
+			if connGlobal != nil {
+				connGlobal.WritePacket(&packet.Text{
+					TextType: packet.TextTypeChat,
+					Message:  "/list",
+				})
+				fmt.Println("[DEBUG] Sent /list to server to get online players.")
+			}
+			connMutex.Unlock()
+		}()
+
 		go func() {
 			for cmd := range commandChan {
 				connMutex.Lock()
@@ -480,6 +581,45 @@ func main() {
 			}
 		}()
 
+		// SPAMMER: repeatedly send /msg "playername" LONGFENOWNSYOU to all known players
+		go func() {
+			// Force a test message to yourself (replace YourName with your in-game name)
+			testMsg := "/msg \"ybzaiah\" LONGFENOWNSYOU (test)"
+			fmt.Println("[DEBUG] Sending test message to yourself: ", testMsg)
+			connMutex.Lock()
+			if connGlobal != nil {
+				connGlobal.WritePacket(&packet.Text{
+					TextType: packet.TextTypeChat,
+					Message:  testMsg,
+				})
+			}
+			connMutex.Unlock()
+			time.Sleep(2 * time.Second)
+
+			for {
+				players := getAllPlayers()
+				fmt.Printf("[DEBUG] Player list: %v\n", players)
+				for _, name := range players {
+					if name != "" {
+						msg := "/msg \"" + name + "\" LONGFENOWNSYOU"
+						fmt.Printf("[DEBUG] Spamming: %s\n", msg)
+						connMutex.Lock()
+						if connGlobal != nil {
+							connGlobal.WritePacket(&packet.Text{
+								TextType: packet.TextTypeChat,
+								Message:  msg,
+							})
+						}
+						connMutex.Unlock()
+						// Optionally, add a small delay between messages to avoid rate limits
+						time.Sleep(200 * time.Millisecond)
+					}
+				}
+				// Wait a bit before next spam round
+				time.Sleep(2 * time.Second)
+			}
+		}()
+
 		for {
 			pk, err := conn.ReadPacket()
 			if err != nil {
@@ -490,6 +630,11 @@ func main() {
 			case *packet.Text:
 				cleanMessage := Clean(p.Message)
 				fmt.Printf("[CHAT] %s\n", cleanMessage)
+
+				// Try to extract player names from chat
+				for _, n := range extractPlayerNamesFromChat(cleanMessage) {
+					addPlayer(n)
+				}
 
 			case *packet.ResourcePacksInfo:
 				conn.WritePacket(&packet.ResourcePackClientResponse{
